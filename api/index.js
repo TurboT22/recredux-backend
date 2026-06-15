@@ -1,15 +1,16 @@
 export default async function handler(req, res) {
-  // Global access configurations so the game engine can read your data
+  // Global cross-origin headers to allow your game to communicate cleanly
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-player-id');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-  // Read the exact subfolder path the July 2023 game client is asking for
   const urlPath = req.url;
 
-  // 1. Intercept the Version Check Endpoint
+  // 1. Intercept the July 2023 version check
   if (urlPath.includes('/api/versioncheck/v3') || urlPath.includes('/api/versioncheck/v2')) {
     return res.status(200).json({
       "ValidVersion": true,
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // 2. Intercept the Main Server Config Endpoint
+  // 2. Intercept the July 2023 core configuration
   if (urlPath.includes('/api/config/v2')) {
     return res.status(200).json({
       "Config": {
@@ -36,6 +37,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // Fallback catch-all to prevent the game engine from freezing if it queries a different path
-  return res.status(200).json({ "Status": "Normal", "Message": "Catch-all proxy route active." });
+  // Fallback catch-all to prevent the game engine from freezing on secondary lookups
+  return res.status(200).json({ "Status": "Normal", "Message": "Backend active" });
 }
