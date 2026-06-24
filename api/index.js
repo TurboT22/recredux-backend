@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { track } from '@vercel/analytics/server';
 
 // Fully handles Vercel's automated integration keys to prevent 500 crashes
 const supabase = createClient(
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
 
   // 1. ENDPOINT: Version Check Bypass
   if (urlPath.includes('/api/versioncheck/v3') || urlPath.includes('/api/versioncheck/v2')) {
+    await track('version_check', { endpoint: urlPath });
     return res.status(200).json({
       "ValidVersion": true,
       "UpdateBehavior": 0,
@@ -29,6 +31,7 @@ export default async function handler(req, res) {
 
   // 2. ENDPOINT: Core Configuration Flags
   if (urlPath.includes('/api/config/v2')) {
+    await track('config_request');
     return res.status(200).json({
       "Config": {
         "api.providers.AppStoreBackend.enabled": false,
@@ -58,9 +61,11 @@ export default async function handler(req, res) {
         .single();
 
       if (error || !player || player.password !== Password) {
+        await track('login_failed', { username: Username });
         return res.status(400).json({ "Result": 0, "Message": "Invalid username or password." });
       }
 
+      await track('login_success', { playerId: player.player_id });
       return res.status(200).json({
         "Result": 1,
         "Token": "redux-session-token-secure",
@@ -84,7 +89,10 @@ export default async function handler(req, res) {
         .eq('username', Username)
         .single();
 
-      if (userExists) return res.status(400).json({ "Result": 0, "Message": "Username taken." });
+      if (userExists) {
+        await track('registration_failed', { reason: 'username_taken' });
+        return res.status(400).json({ "Result": 0, "Message": "Username taken." });
+      }
 
       // Create a random, unique Rec Room player numeric ID number
       const newPlayerId = Math.floor(1000000 + Math.random() * 9000000);
@@ -96,6 +104,7 @@ export default async function handler(req, res) {
 
       if (error) return res.status(500).json({ "Result": 0 });
 
+      await track('registration_success', { playerId: newPlayerId });
       return res.status(200).json({
         "Result": 1,
         "Token": "redux-session-token-secure",
@@ -116,6 +125,7 @@ export default async function handler(req, res) {
       .eq('player_id', playerId)
       .single();
 
+    await track('progression_check', { playerId: String(playerId) });
     return res.status(200).json({
       "Level": player ? player.level : 1,
       "XP": player ? player.xp : 0,
